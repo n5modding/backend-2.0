@@ -1,10 +1,24 @@
 from aiohttp import web
+import os
 import json
 from datetime import datetime, timedelta
-import os
 
-LINKED_ACCOUNTS_FILE = "linked_accounts.json"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+app = web.Application()
+
+# Serve index.html and static files
+async def index(request):
+    return web.FileResponse(os.path.join(BASE_DIR, "../index.html"))
+
+async def style(request):
+    return web.FileResponse(os.path.join(BASE_DIR, "../style.css"))
+
+async def redeem_js(request):
+    return web.FileResponse(os.path.join(BASE_DIR, "../redeem.js"))
+
+# Redeem endpoint
+LINKED_ACCOUNTS_FILE = os.path.join(BASE_DIR, "linked_accounts.json")
 def load_accounts():
     try:
         with open(LINKED_ACCOUNTS_FILE, "r") as f:
@@ -34,16 +48,18 @@ async def redeem_code(request):
     if not found:
         return web.json_response({"status": "error", "message": "Invalid code"})
 
-    # Set cookie expiration for 2 days
     accounts["generated_codes"][found]["redeemed_by"] = found
     accounts["generated_codes"][found]["cookie_expires"] = (now + timedelta(days=2)).isoformat()
     save_accounts(accounts)
     return web.json_response({"status": "success", "message": "Code redeemed successfully!"})
 
-app = web.Application()
-app.router.add_post("/redeem", redeem_code)
-app.router.add_get("/", lambda request: web.Response(text="Backend running"))
+# Routes
+app.router.add_get('/', index)
+app.router.add_get('/style.css', style)
+app.router.add_get('/redeem.js', redeem_js)
+app.router.add_post('/redeem', redeem_code)
 
+# Run
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     web.run_app(app, host="0.0.0.0", port=port)
